@@ -1,0 +1,8 @@
+main_raw.lua
+main_obfuscated.lua
+obfuscate.sh
+*.txt
+rules.md
+document esp.lua
+esp.lua
+stamina.lua
