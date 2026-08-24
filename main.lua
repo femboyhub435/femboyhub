@@ -608,30 +608,19 @@ sav:SetFolder("femboyhub")
 sav:BuildConfigSection(tabs["UI Settings"])
 thm:ApplyToTab(tabs["UI Settings"])
 
-if tog.WatermarkToggle then
-	tog.WatermarkToggle:OnChanged(function(v)
-		pcall(function() lib:SetWatermarkVisibility(v) end)
-	end)
-end
-if tog.KeybindToggle then
-	tog.KeybindToggle:OnChanged(function(v)
-		pcall(function()
-			if lib.KeybindList then
-				lib.KeybindList.Visible = v
-			elseif lib.KeybindFrame then
-				lib.KeybindFrame.Visible = v
-			end
-		end)
-	end)
-end
-if opt.DPIScale then
-	opt.DPIScale:OnChanged(function(v)
-		pcall(function()
-			local val = type(v) == "number" and v or tonumber(tostring(v):match("%d+")) or 100
-			lib:SetDPIScale(val)
-		end)
-	end)
-end
+tog.WatermarkToggle:OnChanged(function()
+	lib:SetWatermarkVisibility(tog.WatermarkToggle.Value)
+end)
+tog.KeybindToggle:OnChanged(function()
+	if lib.KeybindFrame then
+		lib.KeybindFrame.Visible = tog.KeybindToggle.Value
+	end
+end)
+opt.DPIScale:OnChanged(function()
+	local raw = opt.DPIScale.Value
+	local val = type(raw) == "number" and raw or tonumber(tostring(raw):match("%d+")) or 100
+	lib:SetDPIScale(val)
+end)
 
 local plrs = game:GetService("Players")
 local rs = game:GetService("ReplicatedStorage")
