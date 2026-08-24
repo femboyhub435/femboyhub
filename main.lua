@@ -92,6 +92,11 @@ cbGb:AddToggle("AttackIndicator", {
 	Default = false,
 })
 
+cbGb:AddToggle("BlockDebugNotifs", {
+	Text = "Debug Notifications",
+	Default = false,
+})
+
 cbGb:AddToggle("BaitLunge", {
 	Text = "Bait Lunge",
 	Default = false,
@@ -1216,7 +1221,7 @@ local function monitorKiller(k)
 
 	local fovPart = nil
 
-	local function handleAttack()
+	local function handleAttack(triggerSrc)
 		if not tog.AutoBlock.Value then return end
 		task.spawn(function()
 			local now = os.clock()
@@ -1253,87 +1258,108 @@ local function monitorKiller(k)
 			local diff = lRoot.Position - root.Position
 			local dist = diff.Magnitude
 			local limit = opt.FOVSize and opt.FOVSize.Value or 15
-			if dist <= limit and checkWall(lRoot.Position, root.Position, { k }) then
-				if isFacing(lRoot, root, nil, k) then
-					if tog.AntiBait and tog.AntiBait.Value then
-						local reactBase = opt.BlockReact and opt.BlockReact.Value or 0.15
-						local reactTime = math.min(reactBase, m1Spd * 0.3)
-						local okHb = false
-						local st = os.clock()
-						while os.clock() - st < reactTime do
-							if fndHb(k) then
-								okHb = true
-								break
-							end
-							task.wait()
+			local inDist = dist <= limit
+			local wallOk = checkWall(lRoot.Position, root.Position, { k })
+			local facingOk = isFacing(lRoot, root, nil, k)
+
+			if tog.BlockDebugNotifs and tog.BlockDebugNotifs.Value then
+				local src = triggerSrc or "Unknown"
+				if not inDist then
+					lib:Notify(string.format("[Block Debug] %s: Out of range (%.1fm > %.1fm)", src, dist, limit), 2)
+				elseif not wallOk then
+					lib:Notify(string.format("[Block Debug] %s: Wall check failed (%.1fm)", src, dist), 2)
+				elseif not facingOk then
+					lib:Notify(string.format("[Block Debug] %s: Facing check failed", src), 2)
+				end
+			end
+
+			if inDist and wallOk and facingOk then
+				if tog.AntiBait and tog.AntiBait.Value then
+					local reactBase = opt.BlockReact and opt.BlockReact.Value or 0.15
+					local reactTime = math.min(reactBase, m1Spd * 0.3)
+					local okHb = false
+					local st = os.clock()
+					while os.clock() - st < reactTime do
+						if fndHb(k) then
+							okHb = true
+							break
 						end
-						if not okHb then return end
+						task.wait()
 					end
-					if not isFacing(lRoot, root, nil, k) then return end
-					if tog.LegitLunge and tog.LegitLunge.Value then
-						local hum = lChar:FindFirstChildOfClass("Humanoid")
-						if hum then
-							local pos = root.Position + root.CFrame.LookVector * 4
-							local oldWs = hum.WalkSpeed
-							local lWs = opt.LegitLungeSpeed and opt.LegitLungeSpeed.Value or 27.5
-							hum.WalkSpeed = lWs
-							if controls then
-								pcall(function() controls:Disable() end)
-							end
-							hum:MoveTo(pos)
-							task.delay(0.3, function()
-								pcall(function()
-									if hum and hum.Parent then
-										hum.WalkSpeed = oldWs
-									end
-									if controls then
-										controls:Enable()
-									end
-								end)
+					if not okHb then
+						if tog.BlockDebugNotifs and tog.BlockDebugNotifs.Value then
+							lib:Notify("[Block Debug] Anti-Bait: No hitbox found", 2)
+						end
+						return
+					end
+				end
+				if not isFacing(lRoot, root, nil, k) then return end
+				if tog.LegitLunge and tog.LegitLunge.Value then
+					local hum = lChar:FindFirstChildOfClass("Humanoid")
+					if hum then
+						local pos = root.Position + root.CFrame.LookVector * 4
+						local oldWs = hum.WalkSpeed
+						local lWs = opt.LegitLungeSpeed and opt.LegitLungeSpeed.Value or 27.5
+						hum.WalkSpeed = lWs
+						if controls then
+							pcall(function() controls:Disable() end)
+						end
+						hum:MoveTo(pos)
+						task.delay(0.3, function()
+							pcall(function()
+								if hum and hum.Parent then
+									hum.WalkSpeed = oldWs
+								end
+								if controls then
+									controls:Enable()
+								end
 							end)
-						end
-					elseif tog.BaitLunge and tog.BaitLunge.Value then
-						local targetPos = root.Position + root.CFrame.LookVector * 4
-						local lungeDir = (targetPos - lRoot.Position).Unit
-						local lungeSpd = opt.BaitLungeSpeed and opt.BaitLungeSpeed.Value or 160
-						local shake = (tog.HitboxShake and tog.HitboxShake.Value) and Vector3.new(math.random(-20, 20)/20, math.random(-20, 20)/20, math.random(-20, 20)/20) or Vector3.zero
-						local oldVel = lRoot.AssemblyLinearVelocity
-						local lungeVel = lungeDir * lungeSpd + shake
-						lRoot.AssemblyLinearVelocity = lungeVel
-						lRoot.Velocity = lungeVel
-						task.spawn(function()
-							local st = os.clock()
-							while os.clock() - st < 0.18 do
-								if lRoot and lRoot.Parent then
-									lRoot.AssemblyLinearVelocity = lungeVel
-								end
-								run.RenderStepped:Wait()
-							end
+						end)
+					end
+				elseif tog.BaitLunge and tog.BaitLunge.Value then
+					local targetPos = root.Position + root.CFrame.LookVector * 4
+					local lungeDir = (targetPos - lRoot.Position).Unit
+					local lungeSpd = opt.BaitLungeSpeed and opt.BaitLungeSpeed.Value or 160
+					local shake = (tog.HitboxShake and tog.HitboxShake.Value) and Vector3.new(math.random(-20, 20)/20, math.random(-20, 20)/20, math.random(-20, 20)/20) or Vector3.zero
+					local oldVel = lRoot.AssemblyLinearVelocity
+					local lungeVel = lungeDir * lungeSpd + shake
+					lRoot.AssemblyLinearVelocity = lungeVel
+					lRoot.Velocity = lungeVel
+					task.spawn(function()
+						local st = os.clock()
+						while os.clock() - st < 0.18 do
 							if lRoot and lRoot.Parent then
-								lRoot.AssemblyLinearVelocity = oldVel
-								lRoot.Velocity = oldVel
+								lRoot.AssemblyLinearVelocity = lungeVel
 							end
-						end)
-					end
-					fireAbility("Block")
-					if tog.AutoPunch and tog.AutoPunch.Value then
-						local pDelay = opt.PunchDelay and opt.PunchDelay.Value or 0.3
-						task.delay(pDelay, function()
-							if not (tog.AutoPunch and tog.AutoPunch.Value) or unloaded then return end
-							local curChar = lp.Character
-							local curHRP = curChar and curChar:FindFirstChild("HumanoidRootPart")
-							if not curHRP or not root.Parent then return end
-							if not isFacing(curHRP, root, nil, k) then return end
-							if not checkWall(curHRP.Position, root.Position, { k }) then return end
-							if tog.PunchAutoFace and tog.PunchAutoFace.Value then
-								local flat = Vector3.new(root.Position.X - curHRP.Position.X, 0, root.Position.Z - curHRP.Position.Z)
-								if flat.Magnitude > 0.01 then
-									curHRP.CFrame = CFrame.new(curHRP.Position, curHRP.Position + flat.Unit)
-								end
+							run.RenderStepped:Wait()
+						end
+						if lRoot and lRoot.Parent then
+							lRoot.AssemblyLinearVelocity = oldVel
+							lRoot.Velocity = oldVel
+						end
+					end)
+				end
+				if tog.BlockDebugNotifs and tog.BlockDebugNotifs.Value then
+					lib:Notify(string.format("[Block Debug] Fired Block! (Dist: %.1fm)", dist), 3)
+				end
+				fireAbility("Block")
+				if tog.AutoPunch and tog.AutoPunch.Value then
+					local pDelay = opt.PunchDelay and opt.PunchDelay.Value or 0.3
+					task.delay(pDelay, function()
+						if not (tog.AutoPunch and tog.AutoPunch.Value) or unloaded then return end
+						local curChar = lp.Character
+						local curHRP = curChar and curChar:FindFirstChild("HumanoidRootPart")
+						if not curHRP or not root.Parent then return end
+						if not isFacing(curHRP, root, nil, k) then return end
+						if not checkWall(curHRP.Position, root.Position, { k }) then return end
+						if tog.PunchAutoFace and tog.PunchAutoFace.Value then
+							local flat = Vector3.new(root.Position.X - curHRP.Position.X, 0, root.Position.Z - curHRP.Position.Z)
+							if flat.Magnitude > 0.01 then
+								curHRP.CFrame = CFrame.new(curHRP.Position, curHRP.Position + flat.Unit)
 							end
-							fireAbility("Punch")
-						end)
-					end
+						end
+						fireAbility("Punch")
+					end)
 				end
 			end
 		end)
@@ -1345,16 +1371,16 @@ local function monitorKiller(k)
 		local num = snd.SoundId:match("%d+")
 		if not num or not killerSounds["rbxassetid://" .. num] then return end
 		local c1 = snd.Played:Connect(function()
-			handleAttack()
+			handleAttack("Sound:" .. num)
 		end)
 		local c2 = snd:GetPropertyChangedSignal("IsPlaying"):Connect(function()
 			if snd.IsPlaying then
-				handleAttack()
+				handleAttack("SoundPlaying:" .. num)
 			end
 		end)
 		soundConns[snd] = { c1, c2 }
 		if snd.IsPlaying then
-			handleAttack()
+			handleAttack("SoundInitial:" .. num)
 		end
 	end
 
@@ -1374,7 +1400,7 @@ local function monitorKiller(k)
 			if aObj then
 				local num = aObj.AnimationId:match("%d+")
 				if num and (killerAnims["rbxassetid://" .. num] or killerAnims[aObj.AnimationId]) then
-					handleAttack()
+					handleAttack("Anim:" .. num)
 				end
 			end
 		end)
