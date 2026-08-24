@@ -1111,12 +1111,22 @@ end
 local function fndHb(k)
 	local r = k:FindFirstChild("HumanoidRootPart")
 	if not r then return false end
+	local qh = k:FindFirstChild("QueryHitbox") or k:FindFirstChild("Hitbox")
+	if qh and qh:IsA("BasePart") then return true end
+	for _, c in ipairs(k:GetChildren()) do
+		local n = c:FindFirstChild("QueryHitbox") or c:FindFirstChild("Hitbox")
+		if n and n:IsA("BasePart") then return true end
+	end
 	for _, v in ipairs(k:GetDescendants()) do
 		if chkGrn(v) then return true end
+		if v:IsA("BasePart") and (v.Name:find("Hitbox") or v.Name:find("Attack") or v.Name:find("Slash") or v.Name:find("Swing")) then
+			return true
+		end
 	end
 	local pts = workspace.GetPartBoundsInRadius and workspace:GetPartBoundsInRadius(r.Position, 20) or {}
 	for _, p in ipairs(pts) do
 		if chkGrn(p) then return true end
+		if p.Name:find("Hitbox") and not p:IsDescendantOf(workspace:FindFirstChild("Players")) then return true end
 		for _, v in ipairs(p:GetDescendants()) do
 			if chkGrn(v) then return true end
 		end
@@ -1274,19 +1284,22 @@ local function monitorKiller(k)
 			end
 
 			if inDist and wallOk and facingOk then
-				if tog.AntiBait and tog.AntiBait.Value then
+				local antiMethod = opt.AntiBaitMethod and opt.AntiBaitMethod.Value or "Better"
+				if tog.AntiBait and tog.AntiBait.Value and antiMethod ~= "Blatant" then
 					local reactBase = opt.BlockReact and opt.BlockReact.Value or 0.15
 					local reactTime = math.min(reactBase, m1Spd * 0.3)
-					local okHb = false
-					local st = os.clock()
-					while os.clock() - st < reactTime do
-						if fndHb(k) then
-							okHb = true
-							break
-						end
-						task.wait()
-					end
+					local okHb = fndHb(k)
 					if not okHb then
+						local st = os.clock()
+						while os.clock() - st < reactTime do
+							if fndHb(k) then
+								okHb = true
+								break
+							end
+							task.wait()
+						end
+					end
+					if not okHb and antiMethod ~= "Better Better" then
 						if tog.BlockDebugNotifs and tog.BlockDebugNotifs.Value then
 							lib:Notify("[Block Debug] Anti-Bait: No hitbox found", 2)
 						end
