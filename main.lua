@@ -599,6 +599,15 @@ tgGb:AddDropdown("DPIScale", {
 	Text = "DPI Scale",
 })
 
+thm:SetLibrary(lib)
+sav:SetLibrary(lib)
+sav:IgnoreThemeSettings()
+sav:SetIgnoreIndexes({"MenuKeybind"})
+thm:SetFolder("femboyhub")
+sav:SetFolder("femboyhub")
+sav:BuildConfigSection(tabs["UI Settings"])
+thm:ApplyToTab(tabs["UI Settings"])
+
 if tog.WatermarkToggle then
 	tog.WatermarkToggle:OnChanged(function(v)
 		pcall(function() lib:SetWatermarkVisibility(v) end)
@@ -2912,12 +2921,4 @@ lib:OnUnload(function()
 	end
 end)
 
-thm:SetLibrary(lib)
-sav:SetLibrary(lib)
-sav:IgnoreThemeSettings()
-sav:SetIgnoreIndexes({"MenuKeybind"})
-thm:SetFolder("femboyhub")
-sav:SetFolder("femboyhub")
-sav:BuildConfigSection(tabs["UI Settings"])
-thm:ApplyToTab(tabs["UI Settings"])
 sav:LoadAutoloadConfig()
