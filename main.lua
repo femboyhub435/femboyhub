@@ -1650,21 +1650,6 @@ table.insert(conns, run.RenderStepped:Connect(function()
 		jdFovFrame.Position = UDim2.fromScale(0.5, 0.5)
 	end
 
-table.insert(conns, run.RenderStepped:Connect(function()
-	local cam = workspace.CurrentCamera
-	if not cam then return end
-	local vp = cam.ViewportSize
-
-	local showJdFov = tog.JDShowFOV.Value
-	jdFovFrame.Visible = showJdFov
-	if showJdFov then
-		local rad = opt.JDFOVRadius.Value
-		local diam = rad * 2
-		jdFovFrame.Size = UDim2.fromOffset(diam, diam)
-		jdFovStroke.Color = opt.JDFOVColor.Value
-		jdFovFrame.Position = UDim2.fromScale(0.5, 0.5)
-	end
-
 	local espOn = tog.ESPEnabled and tog.ESPEnabled.Value
 	local hlOn = espOn and (tog.ESPHighlight and tog.ESPHighlight.Value)
 	local bbOn = espOn and (tog.ESPBillboards and tog.ESPBillboards.Value)
@@ -1689,59 +1674,58 @@ table.insert(conns, run.RenderStepped:Connect(function()
 			if obj.billboard then obj.billboard.Enabled = false end
 			local tr = espTracers[inst]
 			if tr then tr.Visible = false end
-			continue
-		end
+		else
+			local isK = obj.isKiller
+			local col = isK and kCol or sCol
 
-		local isK = obj.isKiller
-		local col = isK and kCol or sCol
-
-		if obj.highlight and obj.highlight.Parent then
-			obj.highlight.Enabled = hlOn
-			obj.highlight.FillColor = col
-			obj.highlight.FillTransparency = fillTrans
-			obj.highlight.OutlineTransparency = outTrans
-		end
-
-		if obj.billboard and obj.billboard.Parent then
-			obj.billboard.Enabled = bbOn
-			obj.billboard.Adornee = head
-			if bbOn then
-				local tp = plrs:GetPlayerFromCharacter(inst)
-				local act = tp and acts.CurrentActors and acts.CurrentActors[tp]
-				local dispName = act and act.Config and act.Config.DisplayName or (tp and tp.Name) or inst.Name
-				obj.nameLabel.Text = (isK and "[KILLER] " or "") .. dispName
-				obj.nameLabel.TextColor3 = col
-				obj.nameLabel.Visible = showNames
-
-				local infoParts = {}
-				if hum and showHp then
-					local curHp = math.max(0, math.ceil(hum.Health))
-					local maxHp = math.max(1, math.ceil(hum.MaxHealth))
-					table.insert(infoParts, curHp .. "/" .. maxHp .. " HP")
-				end
-				if lRoot and showDist then
-					local d = math.floor((root.Position - lRoot.Position).Magnitude)
-					table.insert(infoParts, d .. "m")
-				end
-				obj.infoLabel.Text = table.concat(infoParts, " • ")
-				obj.infoLabel.Visible = (#infoParts > 0)
+			if obj.highlight and obj.highlight.Parent then
+				obj.highlight.Enabled = hlOn
+				obj.highlight.FillColor = col
+				obj.highlight.FillTransparency = fillTrans
+				obj.highlight.OutlineTransparency = outTrans
 			end
-		end
 
-		local tr = espTracers[inst]
-		if tr then
-			if showTracers then
-				local hrpScrn, onScreen = cam:WorldToViewportPoint(root.Position)
-				if onScreen then
-					tr.From = Vector2.new(vp.X / 2, vp.Y)
-					tr.To = Vector2.new(hrpScrn.X, hrpScrn.Y)
-					tr.Color = col
-					tr.Visible = true
+			if obj.billboard and obj.billboard.Parent then
+				obj.billboard.Enabled = bbOn
+				obj.billboard.Adornee = head
+				if bbOn then
+					local tp = plrs:GetPlayerFromCharacter(inst)
+					local act = tp and acts.CurrentActors and acts.CurrentActors[tp]
+					local dispName = act and act.Config and act.Config.DisplayName or (tp and tp.Name) or inst.Name
+					obj.nameLabel.Text = (isK and "[KILLER] " or "") .. dispName
+					obj.nameLabel.TextColor3 = col
+					obj.nameLabel.Visible = showNames
+
+					local infoParts = {}
+					if hum and showHp then
+						local curHp = math.max(0, math.ceil(hum.Health))
+						local maxHp = math.max(1, math.ceil(hum.MaxHealth))
+						table.insert(infoParts, curHp .. "/" .. maxHp .. " HP")
+					end
+					if lRoot and showDist then
+						local d = math.floor((root.Position - lRoot.Position).Magnitude)
+						table.insert(infoParts, d .. "m")
+					end
+					obj.infoLabel.Text = table.concat(infoParts, " • ")
+					obj.infoLabel.Visible = (#infoParts > 0)
+				end
+			end
+
+			local tr = espTracers[inst]
+			if tr then
+				if showTracers then
+					local hrpScrn, onScreen = cam:WorldToViewportPoint(root.Position)
+					if onScreen then
+						tr.From = Vector2.new(vp.X / 2, vp.Y)
+						tr.To = Vector2.new(hrpScrn.X, hrpScrn.Y)
+						tr.Color = col
+						tr.Visible = true
+					else
+						tr.Visible = false
+					end
 				else
 					tr.Visible = false
 				end
-			else
-				tr.Visible = false
 			end
 		end
 	end
