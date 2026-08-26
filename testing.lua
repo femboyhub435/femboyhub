@@ -16,8 +16,8 @@ end
 
 local function _parse(m)
 	if not (m and m:IsA("ModuleScript") and m.Name == "Config") then return end
-	local cfg = require(m)
-	if type(cfg) ~= "table" then return end
+	local ok, cfg = pcall(require, m)
+	if not (ok and type(cfg) == "table") then return end
 
 	if type(cfg.Animations) == "table" then
 		for k, v in pairs(cfg.Animations) do
