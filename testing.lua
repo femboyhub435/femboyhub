@@ -40,6 +40,26 @@ local function _parse(m)
 	end
 end
 
+local function _copy()
+	local out = {"-- Extracted Killer Slash / M1 Sounds & Anims --\n\nlocal killerAnims = {"}
+	for id in pairs(dynAnm) do
+		table.insert(out, '\t["' .. id .. '"] = true,')
+	end
+	table.insert(out, "}\n\nlocal killerSounds = {")
+	for id in pairs(dynSnd) do
+		table.insert(out, '\t["' .. id .. '"] = true,')
+	end
+	table.insert(out, "}\n\nlocal unblockableAnims = {")
+	for id in pairs(dynUnb) do
+		table.insert(out, '\t["' .. id .. '"] = true,')
+	end
+	table.insert(out, "}")
+	local res = table.concat(out, "\n")
+	local cb = setclipboard or toclipboard or set_clipboard
+	if cb then cb(res) end
+	print("[AutoBlock] Copied to clipboard!")
+end
+
 local function _scan()
 	local ast = rs:FindFirstChild("Assets") or rs:WaitForChild("Assets", 5) or rs
 	for _, d in ipairs(ast:GetDescendants()) do
@@ -47,9 +67,13 @@ local function _scan()
 			_parse(d)
 		end
 	end
+	_copy()
 	ast.DescendantAdded:Connect(function(d)
 		if d:IsA("ModuleScript") and d.Name == "Config" then
-			task.delay(0.1, function() _parse(d) end)
+			task.delay(0.1, function()
+				_parse(d)
+				_copy()
+			end)
 		end
 	end)
 end
